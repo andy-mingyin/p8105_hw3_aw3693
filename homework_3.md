@@ -14,14 +14,101 @@ Mingyin Wang
     ## ✖ dplyr::lag()    masks stats::lag()
     ## ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
 
-Problem 1
+## Problem 1
 
 ``` r
-library(p8105.datasets)
 data("ny_noaa")
 ```
 
-Problem 2 load clean, and tidy data
+clean the data, creating separate variables for year, month, and day and
+converting `tmax` and `tmin` to numeric. 0 is the most commonly observed
+value for snowfall
+
+``` r
+ny_noaa %>% 
+  count(snow)
+```
+
+    ## # A tibble: 282 × 2
+    ##     snow       n
+    ##    <int>   <int>
+    ##  1   -13       1
+    ##  2     0 2008508
+    ##  3     3    8790
+    ##  4     5    9748
+    ##  5     8    9962
+    ##  6    10    5106
+    ##  7    13   23095
+    ##  8    15    3672
+    ##  9    18    3226
+    ## 10    20    4797
+    ## # ℹ 272 more rows
+
+``` r
+ny_noaa <- ny_noaa %>%
+  mutate(
+    year = year(date),
+    month = month(date),
+    day = day(date),
+    tmax = as.numeric(tmax),
+    tmin = as.numeric(tmin)
+  )
+```
+
+``` r
+ny_noaa %>% 
+  group_by(id, year, month) %>% 
+  filter(month %in% c(1, 7)) %>% 
+  summarize(mean_tmax = mean(tmax, na.rm = TRUE, color = id)) %>% 
+  ggplot(aes(x = year, y = mean_tmax, group = id)) + geom_point() + geom_path() +
+  facet_grid(~month) +
+  labs(title = "Mean monthly temperature for each station across years for January and July")
+```
+
+    ## `summarise()` has grouped output by 'id', 'year'. You can override using the
+    ## `.groups` argument.
+
+<img src="homework_3_files/figure-gfm/unnamed-chunk-4-1.png" width="90%" />
+The two-panel plot shows the average maximum temperature in January and
+July for each station across multiple years. The average maximum
+temperature in January is consistently lower than in July across all
+stations and years.
+
+a two-panel plot including (i) a hex plot of `tmax` vs `tmin` and ridge
+plot
+
+``` r
+hex = 
+  ny_noaa %>% 
+  ggplot(aes(x = tmin, y = tmax)) + 
+  geom_hex()
+
+ridge = 
+  ny_noaa %>% 
+  filter(snow < 100, snow > 0) %>%
+  ggplot(aes(x = snow, y = as.factor(year))) + 
+  geom_density_ridges()
+
+hex + ridge
+```
+
+    ## Picking joint bandwidth of 3.76
+
+<img src="homework_3_files/figure-gfm/unnamed-chunk-5-1.png" width="90%" />
+The hex plot shows that most of the data clusters tightly around the
+center of the distribution, with some variability. In rare cases, tmax
+values are lower than tmin, suggesting potential data recording or
+quality issues.
+
+The ridge plot reveals a multimodal distribution of yearly snowfall,
+with most stations receiving between 0 and 35 mm of snow. Other group of
+station receive around 45 mm, and another group that sees nearly 80 mm.
+This multimodality likely results from the conversion between
+measurement systems, as noted in the table of common values.
+
+## Problem 2
+
+load clean, and tidy data
 
 ``` r
 covar_df = read_csv("data/nhanes_covar.csv", skip = 4) |>
@@ -89,10 +176,22 @@ education category.
 ggplot(merged_df, aes(x = education, y = age, fill = sex)) +
   geom_boxplot() + 
   labs(title = "Age Distribution by Education and Sex", x = "Education Level", y = "Age") +
-  theme_minimal() 
+  theme_minimal()
 ```
 
-![](homework_3_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+<img src="homework_3_files/figure-gfm/unnamed-chunk-9-1.png" width="90%" />
+
+High school equivalent: The age distribution of females tends to be
+higher than that of males, with a median age of about 60 years for
+females and around 55 years for males.
+
+Less than high school: The age distribution for males has a broader
+spread. Females show a median age of about 60, whereas males have a
+little bit of lower median.
+
+More than high school: Age distribution is similar for both males and
+females, with medians over 40. But male’s median age is higher than
+female’s.
 
 Create a total activity df
 
@@ -115,7 +214,14 @@ ggplot(tot_act, aes(x = age, y = total_activity, color = sex)) +
 
     ## `geom_smooth()` using formula = 'y ~ x'
 
-![](homework_3_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+<img src="homework_3_files/figure-gfm/unnamed-chunk-11-1.png" width="90%" />
+Across all education levels, total activity tends to decrease with age
+for both males and females, but the rate of decline varies by education
+level. Individuals with more education tend to maintain relatively
+higher levels of activity into older age. The “Less than high school”
+group shows a sharper decline in activity, especially for females. This
+suggests that education may play a role in promoting consistent physical
+activity as people age.
 
 pivot longer the df
 
@@ -141,11 +247,27 @@ ggplot(day_df, aes(x = minute, y = mims, color = sex)) +
 
     ## `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
 
-![](homework_3_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+<img src="homework_3_files/figure-gfm/unnamed-chunk-13-1.png" width="90%" />
+Across all education levels, the activity patterns follow a similar
+daily rhythm with two peaks: one in the morning and one in the
+afternoon, followed by a decline in the evening. The highest levels of
+activity occur during the daytime, with minimal activity during the
+night.
 
-Question 3
+High school equivalent: Females show slightly higher activity levels
+than males, especially during the morning peak, though both follow
+similar trends.
 
-laod the datasets
+Less than high school: The activity levels for males and females are
+almost identical, with both showing similar peaks and declines.
+
+More than high school: Females again show higher activity than males
+throughout most of the day, particularly during the first peak, though
+the overall patterns are quite similar.
+
+## Question 3
+
+load the datasets
 
 ``` r
 jan_2020 = read_csv("data/citibike/Jan 2020 Citi.csv") |>
@@ -251,6 +373,11 @@ rides_summary
     ## 3  2024     1   2108  16753             18861
     ## 4  2024     7  10894  36262             47156
 
+Both casual and member rides increased significantly from 2020 to
+2024.The number of rides in July is much higher than in January for both
+casual riders and members.More people prefer biking during the warmer
+months. Also, Citi Bike members take more rides than casual riders.
+
 Make a table showing the 5 most popular starting stations for July 2024;
 include the number of rides originating from these stations.
 
@@ -296,13 +423,18 @@ ggplot(median_ride_duration, aes(x = weekdays, y = median_duration, color = fact
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-    ## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
-    ## ℹ Please use `linewidth` instead.
-    ## This warning is displayed once every 8 hours.
-    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-    ## generated.
+<img src="homework_3_files/figure-gfm/unnamed-chunk-18-1.png" width="90%" />
+For both 2020 and 2024, median ride durations are noticeably longer in
+July than in January, indicating that people likely take longer rides
+during the warmer month of July.
 
-![](homework_3_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+For July, in 2020, the median ride duration on weekends is significantly
+higher than on weekdays, with a peak above 15 minutes. For 2024, the
+weekend rides are also longer but show a slightly less dramatic spike.
+
+For January, in 2020, the median ride duration on weekends is higher
+than weekdays, with a peak around 10 minutes. The median ride duration
+in 2024 is fairly consistent throughout the week.
 
 For data in 2024, make a figure that shows the impact of month,
 membership status, and bike type on the distribution of ride duration.
@@ -322,4 +454,8 @@ ggplot(df_2024, aes(x = duration, fill = rideable_type)) +
   theme_minimal() 
 ```
 
-![](homework_3_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+<img src="homework_3_files/figure-gfm/unnamed-chunk-19-1.png" width="90%" />
+
+Members have more rides with short ride duration time, which means that
+they might use Citi Bike more for commuting or routine trips. Electric
+bikes are more frequently used in general.
